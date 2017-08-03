@@ -10,33 +10,44 @@ namespace HideVolumeOSD
 {
     class VolumeKeys
     {
+        [DllImport("user32.dll")]
+        static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc callback, IntPtr hInstance, uint threadId);
+
+        [DllImport("user32.dll")]
+        static extern bool UnhookWindowsHookEx(IntPtr hInstance);
+
+        [DllImport("user32.dll")]
+        static extern int CallNextHookEx(IntPtr idHook, int nCode, int wParam, ref KeyboardHookStruct lParam);
         
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-        private const int WH_KEYBOARD_LL = 13;
-        private const int WM_KEYDOWN = 0x0100;
+        public delegate int LowLevelKeyboardProc(int code, int wParam, ref KeyboardHookStruct lParam);
 
-        private IntPtr _hookID = IntPtr.Zero;
+        public struct KeyboardHookStruct
+        {
+            public int vkCode;
+            public int scanCode;
+            public int flags;
+            public int time;
+            public int dwExtraInfo;
+        }
+
+        const int WH_KEYBOARD_LL = 13;
+        const int WM_KEYDOWN = 0x100;
+
+        private IntPtr hook = IntPtr.Zero;
 
         public event KeyPressHandler KeyPress;
         public delegate void KeyPressHandler(object sender, EventArgs e);
 
+        private LowLevelKeyboardProc callbackCache;
+
         public VolumeKeys()
         {
-            _hookID = SetHook(HookCallback);
+            callbackCache = new LowLevelKeyboardProc(HookCallback);
+            hook = SetHook(callbackCache);
         }
-
 
         private IntPtr SetHook(LowLevelKeyboardProc proc)
         {
@@ -49,24 +60,20 @@ namespace HideVolumeOSD
 
         }
 
-        private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-        
-        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        public int HookCallback(int code, int wParam, ref KeyboardHookStruct lParam)
         {
-            if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
+            if (code >= 0 && wParam == WM_KEYDOWN)
             {
-                int vkCode = Marshal.ReadInt32(lParam);
+                Keys key = (Keys)lParam.vkCode;
 
-                if ((Keys)vkCode == Keys.VolumeUp || (Keys)vkCode == Keys.VolumeDown)
+                if (key == Keys.VolumeUp || key == Keys.VolumeDown)
                 {
-                    KeyPress?.Invoke(this,new EventArgs());
+                    KeyPress?.Invoke(this, new EventArgs());
                 }
 
             }
-            return CallNextHookEx(_hookID, nCode, wParam, lParam);
+            return CallNextHookEx(hook, code, wParam, ref lParam);
         }
-
 
     }
 }
