@@ -67,8 +67,14 @@ namespace HideVolumeOSD
 			menu.Items.Add(item);
 			switchMenu = item;
 
-			// About
-			item = new ToolStripMenuItem();
+            item = new ToolStripMenuItem();
+            item.Text = "Settings";
+            item.Click += new EventHandler(Settings_Click);
+            item.ImageIndex = 0;
+            menu.Items.Add(item);
+
+            // About
+            item = new ToolStripMenuItem();
 			item.Text = "About";
 			item.Click += new EventHandler(About_Click);
 			item.ImageIndex = 2;
@@ -139,5 +145,16 @@ namespace HideVolumeOSD
 		{
 			Application.Exit();
 		}
-	}
+
+
+        /// <summary>
+		/// Open Settings Form
+		/// </summary>
+		/// <param name="sender">The sender.</param>
+		/// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+		void Settings_Click(object sender, EventArgs e)
+        {
+            new SettingsForm().Show();
+        }
+    }
 }

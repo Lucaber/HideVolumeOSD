@@ -23,7 +23,11 @@ namespace HideVolumeOSD
 
 		IntPtr hWndInject = IntPtr.Zero;
 
-		public HideVolumeOSDLib(NotifyIcon ni)
+        VolumeKeys volumeKeys;
+        System.Timers.Timer hideTimer = new System.Timers.Timer();
+        bool hiding = false;
+
+        public HideVolumeOSDLib(NotifyIcon ni)
 		{
 			this.ni = ni;
 		}
@@ -64,9 +68,34 @@ namespace HideVolumeOSD
 
 				Application.ApplicationExit += Application_ApplicationExit;
 			}
-		}
 
-		private IntPtr FindOSDWindow(bool bSilent)
+            volumeKeys = new VolumeKeys();
+            volumeKeys.KeyPress += VolumeKeys_KeyPress;
+
+            hideTimer.Elapsed += HideTimer_Elapsed;
+        }
+
+        
+        private void VolumeKeys_KeyPress(object sender, EventArgs e)
+        {
+            hideTimer.Stop();
+            if (Settings.Default.HideOSD == false) return;
+            if (Settings.Default.ShowMs == 0) return;
+            hideTimer.Interval = Settings.Default.ShowMs;
+
+            if (hiding) ShowOSD(false);
+
+            hideTimer.Start();
+        }
+
+        private void HideTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            hideTimer.Stop();
+
+            if (!hiding && Settings.Default.HideOSD) HideOSD();
+        }
+
+        private IntPtr FindOSDWindow(bool bSilent)
 		{
 			IntPtr hwndRet = IntPtr.Zero;
 			IntPtr hwndHost = IntPtr.Zero;
@@ -121,19 +150,27 @@ namespace HideVolumeOSD
 
 			if (ni != null)
 				ni.Icon = Resources.IconDisabled;
-		}
 
-		public void ShowOSD()
+            hiding = true;
+            hideTimer.Stop();
+        }
+
+		public void ShowOSD(bool show=true)
 		{
 			ShowWindow(hWndInject, 9); // SW_RESTORE
-
-			// show window on the screen
-
-			keybd_event((byte)Keys.VolumeUp, 0, 0, 0);
-			keybd_event((byte)Keys.VolumeDown, 0, 0, 0);
+            
+            if (show)
+            {
+                // show window on the screen
+                keybd_event((byte)Keys.VolumeUp, 0, 0, 0);
+                keybd_event((byte)Keys.VolumeDown, 0, 0, 0);
+            }
+			
 
 			if (ni != null)
 				ni.Icon = Resources.Icon;
-		}
+
+            hiding = false;
+        }
 	}
 }
